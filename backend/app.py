@@ -1,9 +1,14 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 import os
+from flask_cors import CORS  # Import CORS
+
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app)
 
 # Configure the database connection
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Umbc%404589@localhost/IA_AD'
@@ -98,6 +103,18 @@ def delete_instructor(instructor_id):
         return jsonify({'message': 'Instructor deleted successfully!'})
     else:
         return jsonify({'message': 'Instructor not found!'}), 404
+
+# Get all instructors
+@app.route('/courses', methods=['GET'])
+def get_courses():
+    Courses = Course.query.all()
+    return jsonify([{'CourseID': i.CourseID, 'Name': i.CourseTitle, 'Department': i.InstructorID, 'Credits:' : i.Credits} for i in Courses])
+
+# # Get all instructors
+# @app.route('/courses', methods=['GET'])
+# def get_courses():
+#     Courses = Course.query.all()
+#     return jsonify([{'CourseID': i.CourseID, 'Name': i.CourseTitle, 'Department': i.InstructorID, 'Credits:' : i.Credits} for i in Courses])
 
 # Run the Flask app
 if __name__ == '__main__':
