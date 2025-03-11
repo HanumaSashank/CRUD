@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 import os
 from flask_cors import CORS  # Import CORS
+import logging
 
 
 # Initialize Flask app
@@ -16,6 +17,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
+
+# Configure logging
+# logging.basicConfig(level=logging.DEBUG)
 
 # Define the Student model
 class Student(db.Model):
@@ -55,66 +59,111 @@ def home():
 # Get all students
 @app.route('/students', methods=['GET'])
 def get_students():
-    students = Student.query.all()
-    return jsonify([{'StudentID': s.StudentID, 'Name': s.Name, 'CreditsEarned': s.CreditsEarned} for s in students])
+    try:
+        students = Student.query.all()
+        return jsonify([{'StudentID': s.StudentID, 'Name': s.Name, 'CreditsEarned': s.CreditsEarned} for s in students])
+    except Exception as e:
+        logging.error(f"Error fetching students: {e}")
+        return jsonify({'message': 'Failed to fetch students'}), 500
 
 # Add a new student
 @app.route('/students', methods=['POST'])
 def add_student():
-    data = request.get_json()
-    new_student = Student(StudentID=data['StudentID'], Name=data['Name'], CreditsEarned=data['CreditsEarned'])
-    db.session.add(new_student)
-    db.session.commit()
-    return jsonify({'message': 'Student added successfully!'})
+    try:
+        data = request.get_json()
+        new_student = Student(StudentID=data['StudentID'], Name=data['Name'], CreditsEarned=data['CreditsEarned'])
+        db.session.add(new_student)
+        db.session.commit()
+        return jsonify({'message': 'Student added successfully!'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error adding student: {e}")
+        return jsonify({'message': 'Failed to add student'}), 500
 
 # Delete a student
 @app.route('/students/<int:student_id>', methods=['DELETE'])
 def delete_student(student_id):
-    student = Student.query.get(student_id)
-    if student:
-        db.session.delete(student)
-        db.session.commit()
-        return jsonify({'message': 'Student deleted successfully!'})
-    else:
-        return jsonify({'message': 'Student not found!'}), 404
+    try:
+        student = Student.query.get(student_id)
+        if student:
+            # Delete all enrollments for the student
+            Enrollment.query.filter_by(StudentID=student_id).delete()
+            db.session.delete(student)
+            db.session.commit()
+            return jsonify({'message': 'Student deleted successfully!'})
+        else:
+            return jsonify({'message': 'Student not found!'}), 404
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting student: {e}")
+        return jsonify({'message': 'Failed to delete student'}), 500
 
 # Get all instructors
 @app.route('/instructors', methods=['GET'])
 def get_instructors():
-    instructors = Instructor.query.all()
-    return jsonify([{'InstructorID': i.InstructorID, 'Name': i.Name, 'Department': i.Department} for i in instructors])
+    try:
+        instructors = Instructor.query.all()
+        return jsonify([{'InstructorID': i.InstructorID, 'Name': i.Name, 'Department': i.Department} for i in instructors])
+    except Exception as e:
+        logging.error(f"Error fetching instructors: {e}")
+        return jsonify({'message': 'Failed to fetch instructors'}), 500
 
 # Add a new instructor
 @app.route('/instructors', methods=['POST'])
 def add_instructor():
-    data = request.get_json()
-    new_instructor = Instructor(InstructorID=data['InstructorID'], Name=data['Name'], Department=data['Department'])
-    db.session.add(new_instructor)
-    db.session.commit()
-    return jsonify({'message': 'Instructor added successfully!'})
-
-# Delete an instructor
-@app.route('/instructors/<int:instructor_id>', methods=['DELETE'])
-def delete_instructor(instructor_id):
-    instructor = Instructor.query.get(instructor_id)
-    if instructor:
-        db.session.delete(instructor)
+    try:
+        data = request.get_json()
+        new_instructor = Instructor(InstructorID=data['InstructorID'], Name=data['Name'], Department=data['Department'])
+        db.session.add(new_instructor)
         db.session.commit()
-        return jsonify({'message': 'Instructor deleted successfully!'})
-    else:
-        return jsonify({'message': 'Instructor not found!'}), 404
+        return jsonify({'message': 'Instructor added successfully!'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error adding instructor: {e}")
+        return jsonify({'message': 'Failed to add instructor'}), 500
 
-# Get all instructors
+# # Delete an instructor
+# @app.route('/instructors/<int:instructor_id>', methods=['DELETE'])
+# def delete_instructor(instructor_id):
+#     try:
+#         instructor = Instructor.query.get(instructor_id)
+#         if instructor:
+#             # Reassign or delete courses taught by the instructor
+#             courses = Course.query.filter_by(InstructorID=instructor_id).all()
+#             for course in courses:
+#                 # Option 1: Reassign the course to another instructor
+#                 # course.InstructorID = new_instructor_id
+#                 # Option 2: Delete the course
+#                 db.session.delete(course)
+#             db.session.delete(instructor)
+#             db.session.commit()
+#             return jsonify({'message': 'Instructor deleted successfully!'})
+#         else:
+#             return jsonify({'message': 'Instructor not found!'}), 404
+#     except Exception as e:
+#         db.session.rollback()
+#         logging.error(f"Error deleting instructor: {e}")
+#         return jsonify({'message': 'Failed to delete instructor'}), 500
+
+# Get all courses
 @app.route('/courses', methods=['GET'])
 def get_courses():
-    Courses = Course.query.all()
-    return jsonify([{'CourseID': i.CourseID, 'Name': i.CourseTitle, 'Department': i.InstructorID, 'Credits:' : i.Credits} for i in Courses])
+    try:
+        courses = Course.query.all()
+        return jsonify([{'CourseID': c.CourseID, 'CourseTitle': c.CourseTitle, 'InstructorID': c.InstructorID, 'Credits': c.Credits} for c in courses])
+    except Exception as e:
+        logging.error(f"Error fetching courses: {e}")
+        return jsonify({'message': 'Failed to fetch courses'}), 500
 
-# # Get all instructors
-# @app.route('/courses', methods=['GET'])
-# def get_courses():
-#     Courses = Course.query.all()
-#     return jsonify([{'CourseID': i.CourseID, 'Name': i.CourseTitle, 'Department': i.InstructorID, 'Credits:' : i.Credits} for i in Courses])
+# Get enrollment details for a student
+@app.route('/enrollments/<int:student_id>', methods=['GET'])
+def get_enrollments(student_id):
+    try:
+        enrollments = Enrollment.query.filter_by(StudentID=student_id).all()
+        return jsonify([{'CourseID': e.CourseID, 'Grade': e.Grade} for e in enrollments])
+    except Exception as e:
+        logging.error(f"Error fetching enrollments: {e}")
+        return jsonify({'message': 'Failed to fetch enrollments'}), 500
 
 # Run the Flask app
 if __name__ == '__main__':

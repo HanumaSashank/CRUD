@@ -7,24 +7,26 @@ const AddInstructorForm = () => {
     Department: '',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Send a POST request to add a new instructor
-    fetch('http://127.0.0.1:5000/instructors', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('Instructor added:', data);
-        alert('Instructor added successfully!');
-        // Clear the form
-        setFormData({ InstructorID: '', Name: '', Department: '' });
-      })
-      .catch((error) => console.error('Error adding instructor:', error));
+    try {
+      const response = await fetch('http://127.0.0.1:5000/instructors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      if (!response.ok) throw new Error('Failed to add instructor');
+      const data = await response.json();
+      console.log('Instructor added:', data);
+      alert('Instructor added successfully!');
+      // Clear the form
+      setFormData({ InstructorID: '', Name: '', Department: '' });
+    } catch (error) {
+      console.error('Error adding instructor:', error);
+      alert('Failed to add instructor. Please try again.');
+    }
   };
 
   return (
